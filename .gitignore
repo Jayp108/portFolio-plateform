@@ -30,4 +30,5 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-.env.example/
+.env
+
