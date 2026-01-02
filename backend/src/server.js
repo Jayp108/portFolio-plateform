@@ -20,10 +20,21 @@ connectDB();
 
 app.use(
   cors({
-    origin: process.env.CLIENT_URL,
+    origin: [
+      "http://localhost:5173",              // local frontend
+      "https://portfolio-plateform.vercel.app" // vercel frontend
+    ],
     credentials: true,
   })
 );
+
+
+// app.use(
+//   cors({
+//     origin: process.env.CLIENT_URL,
+//     credentials: true,
+//   })
+// );
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
