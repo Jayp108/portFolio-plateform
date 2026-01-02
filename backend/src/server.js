@@ -18,30 +18,14 @@ const app = express();
 
 connectDB();
 
+
 app.use(
   cors({
-    origin: [
-      "http://localhost:5173",
-      "https://portfolio-platform.vercel.app",
-      "https://portfolio-platform-kh6s60vw-jayprakash-rajputs-projects.vercel.app"
-    ],
+    origin: process.env.CLIENT_URL,
+    // origin:"https://portfolio-platform.vercel.app",
     credentials: true,
   })
 );
-
-// app.use(
-//   cors({
-//     origin: [
-//       "http://localhost:5173",
-//       "https://portfolio-platform.vercel.app"
-//     ],
-
-//     // origin: process.env.CLIENT_URL,
-//     // origin:"https://portfolio-platform.vercel.app",
-
-//     credentials: true,
-//   })
-// );
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
