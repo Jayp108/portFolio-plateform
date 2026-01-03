@@ -25,6 +25,10 @@ const aboutSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
+    resumePublicId: {
+      type: String,
+      trim: true,
+    },
     email: {
       type: String,
       trim: true,

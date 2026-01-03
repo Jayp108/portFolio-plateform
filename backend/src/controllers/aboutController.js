@@ -1,10 +1,6 @@
 import About from '../models/About.js';
-import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+import cloudinary from '../config/cloudinary.js';
+import { Readable } from 'stream';
 
 export const getAbout = async (req, res) => {
   try {
@@ -157,8 +153,10 @@ export const deleteSkill = async (req, res) => {
   }
 };
 
+// ==================== CLOUDINARY RESUME UPLOAD ====================
 export const uploadResume = async (req, res) => {
   try {
+    // Check if file exists
     if (!req.file) {
       return res.status(400).json({
         success: false,
@@ -166,65 +164,79 @@ export const uploadResume = async (req, res) => {
       });
     }
 
-    const uploadsDir = path.join(__dirname, '../../uploads');
-    if (!fs.existsSync(uploadsDir)) {
-      fs.mkdirSync(uploadsDir, { recursive: true });
-    }
-
-    const resumePath = `/uploads/${req.file.filename}`;
-    
+    // Get existing about document
     let about = await About.findOne();
 
-    if (about) {
-      if (about.resumeLink) {
-        const oldResumePath = path.join(__dirname, '../..', about.resumeLink);
-        if (fs.existsSync(oldResumePath)) {
-          fs.unlinkSync(oldResumePath);
-        }
+    // If resume already exists, delete old one from Cloudinary
+    if (about && about.resumePublicId) {
+      try {
+        await cloudinary.uploader.destroy(about.resumePublicId, {
+          resource_type: 'raw'
+        });
+        console.log('Old resume deleted from Cloudinary');
+      } catch (deleteError) {
+        console.error('Error deleting old resume:', deleteError);
+        // Continue with upload even if delete fails
       }
+    }
 
-      about.resumeLink = resumePath;
-      about.resumeFileName = req.file.originalname;
-      await about.save();
-
-      res.status(200).json({
-        success: true,
-        message: 'Resume uploaded successfully',
-        data: { 
-          resumeLink: resumePath,
-          resumeFileName: req.file.originalname,
+    // Upload new resume to Cloudinary
+    const uploadPromise = new Promise((resolve, reject) => {
+      const uploadStream = cloudinary.uploader.upload_stream(
+        {
+          folder: 'portfolio/resumes',
+          resource_type: 'raw',
+          public_id: `resume_${Date.now()}`,
+          format: 'pdf',
         },
-      });
+        (error, result) => {
+          if (error) {
+            reject(error);
+          } else {
+            resolve(result);
+          }
+        }
+      );
+
+      // Create readable stream from buffer and pipe to Cloudinary
+      const bufferStream = Readable.from(req.file.buffer);
+      bufferStream.pipe(uploadStream);
+    });
+
+    const uploadResult = await uploadPromise;
+
+    // Update or create about document
+    if (about) {
+      about.resumeLink = uploadResult.secure_url;
+      about.resumeFileName = req.file.originalname;
+      about.resumePublicId = uploadResult.public_id;
+      await about.save();
     } else {
       about = await About.create({
-        resumeLink: resumePath,
+        resumeLink: uploadResult.secure_url,
         resumeFileName: req.file.originalname,
-      });
-
-      res.status(201).json({
-        success: true,
-        message: 'Resume uploaded successfully',
-        data: { 
-          resumeLink: resumePath,
-          resumeFileName: req.file.originalname,
-        },
+        resumePublicId: uploadResult.public_id,
       });
     }
+
+    res.status(200).json({
+      success: true,
+      message: 'Resume uploaded successfully',
+      data: {
+        resumeLink: uploadResult.secure_url,
+        resumeFileName: req.file.originalname,
+      },
+    });
   } catch (error) {
-    if (req.file) {
-      const filePath = path.join(__dirname, '../../uploads', req.file.filename);
-      if (fs.existsSync(filePath)) {
-        fs.unlinkSync(filePath);
-      }
-    }
-
+    console.error('Resume upload error:', error);
     res.status(500).json({
       success: false,
-      message: error.message,
+      message: error.message || 'Failed to upload resume',
     });
   }
 };
 
+// ==================== GET RESUME INFO ====================
 export const getResume = async (req, res) => {
   try {
     const about = await About.findOne();
@@ -238,7 +250,7 @@ export const getResume = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      data: { 
+      data: {
         resumeLink: about.resumeLink,
         resumeFileName: about.resumeFileName || 'resume.pdf',
       },
@@ -251,6 +263,7 @@ export const getResume = async (req, res) => {
   }
 };
 
+// ==================== DOWNLOAD RESUME ====================
 export const downloadResume = async (req, res) => {
   try {
     const about = await About.findOne();
@@ -262,21 +275,14 @@ export const downloadResume = async (req, res) => {
       });
     }
 
-    const resumePath = path.join(__dirname, '../..', about.resumeLink);
-
-    if (!fs.existsSync(resumePath)) {
-      return res.status(404).json({
-        success: false,
-        message: 'Resume file not found',
-      });
-    }
-
-    const fileName = about.resumeFileName || 'resume.pdf';
-    res.download(resumePath, fileName);
+    // Redirect to Cloudinary secure_url for download
+    // This is the simplest and most reliable method
+    res.redirect(about.resumeLink);
   } catch (error) {
+    console.error('Resume download error:', error);
     res.status(500).json({
       success: false,
-      message: error.message,
+      message: error.message || 'Failed to download resume',
     });
   }
 };
