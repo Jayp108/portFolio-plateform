@@ -1,36 +1,30 @@
-import axios from 'axios';
-
-// const api = axios.create({
-//   baseURL: `${import.meta.env.VITE_API_BASE_URL}/api`,
-//   withCredentials: true,
-  // headers: {
-  //   'Content-Type': 'application/json',
-  // },
-// });
-
-// import axios from "axios";
+import axios from "axios";
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL,
-  withCredentials: true
+  baseURL: import.meta.env.VITE_API_BASE_URL,
+  withCredentials: true,
+  headers: {
+    "Content-Type": "application/json",
+  },
 });
 
-// export default api;
-
-
+/* ======================
+   REQUEST INTERCEPTOR
+====================== */
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('accessToken');
+    const token = localStorage.getItem("accessToken");
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
     return config;
   },
-  (error) => {
-    return Promise.reject(error);
-  }
+  (error) => Promise.reject(error)
 );
 
+/* ======================
+   RESPONSE INTERCEPTOR
+====================== */
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
@@ -40,25 +34,25 @@ api.interceptors.response.use(
       originalRequest._retry = true;
 
       try {
-        const refreshToken = localStorage.getItem('refreshToken');
-        const apiBaseUrl = import.meta.env.VITE_CLIENT_URL || 'http://localhost:5000';
-        const response = await axios.post(`${apiBaseUrl}/api/auth/refresh`, {
-          refreshToken,
-        });
+        const refreshToken = localStorage.getItem("refreshToken");
 
-        const { accessToken, refreshToken: newRefreshToken } = response.data.data;
+        const res = await axios.post(
+          `${import.meta.env.VITE_API_BASE_URL}/auth/refresh`,
+          { refreshToken },
+          { withCredentials: true }
+        );
 
-        localStorage.setItem('accessToken', accessToken);
-        localStorage.setItem('refreshToken', newRefreshToken);
+        const { accessToken, refreshToken: newRefreshToken } = res.data.data;
+
+        localStorage.setItem("accessToken", accessToken);
+        localStorage.setItem("refreshToken", newRefreshToken);
 
         originalRequest.headers.Authorization = `Bearer ${accessToken}`;
         return api(originalRequest);
-      } catch (refreshError) {
-        localStorage.removeItem('accessToken');
-        localStorage.removeItem('refreshToken');
-        localStorage.removeItem('user');
-        window.location.href = '/login';
-        return Promise.reject(refreshError);
+      } catch (err) {
+        localStorage.clear();
+        window.location.href = "/login";
+        return Promise.reject(err);
       }
     }
 
