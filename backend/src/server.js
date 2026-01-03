@@ -63,14 +63,14 @@ app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
 /* =======================
    ROUTES
 ======================= */
-app.use("/api/auth", authRoutes);
-app.use("/api/projects", projectRoutes);
-app.use("/api/about", aboutRoutes);
+app.use("/auth", authRoutes);
+app.use("/projects", projectRoutes);
+app.use("/about", aboutRoutes);
 
 /* =======================
    HEALTH CHECK
 ======================= */
-app.get("/api/health", (req, res) => {
+app.get("/health", (req, res) => {
   res.json({ success: true, message: "Server is running" });
 });
 
