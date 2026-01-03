@@ -10,12 +10,13 @@ const Home = () => {
 
   useEffect(() => {
     checkResumeAvailability();
-  }, []);
+  }, [resumeAvailable]);
 
   const checkResumeAvailability = async () => {
     try {
       const response = await api.get('/about/resume');
       if (response.data.success && response.data.data.resumeLink) {
+        console.log(response.data);
         setResumeAvailable(true);
       }
     } catch (error) {

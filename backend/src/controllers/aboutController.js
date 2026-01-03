@@ -269,6 +269,7 @@ export const downloadResume = async (req, res) => {
     const about = await About.findOne();
 
     if (!about || !about.resumeLink) {
+      
       return res.status(404).json({
         success: false,
         message: 'Resume not found',
